@@ -72,23 +72,46 @@ async function renderStacey(){
   const rows = await loadCSV('data/problems_enriched.csv').catch(()=>[]);
   const pts = rows.map(r=>({x:+r.impact||0, y:+r.uncertainty||0, label:r.title, route:r.route||'DEFER/AUTO'}));
   const ctx = document.getElementById('staceyChart').getContext('2d');
-  // global plugins used via CDN
-  new Chart(ctx,{type:'scatter',data:{datasets:[{data:pts, pointBackgroundColor:pts.map(d=>colorByRoute(d.route))}]},
+  // ensure CDN plugins are registered
+  if(window.Chart && window.ChartDataLabels && window.ChartAnnotation){
+    Chart.register(ChartDataLabels, ChartAnnotation);
+  }
+  const quadrantFills = {
+    commit:'rgba(16,185,129,0.12)',
+    explore:'rgba(245,158,11,0.12)',
+    park:'rgba(239,68,68,0.1)',
+    defer:'rgba(156,163,175,0.12)'
+  };
+  new Chart(ctx,{type:'scatter',
+    data:{datasets:[{
+      label:'Stacey Matrix',
+      data:pts,
+      pointRadius:6,
+      pointHoverRadius:7,
+      pointBackgroundColor:pts.map(d=>colorByRoute(d.route)),
+      pointBorderWidth:0
+    }]},
     options:{responsive:true,
       plugins:{
         legend:{display:false},
-        tooltip:{callbacks:{label:(c)=>`${c.raw.label} (I:${c.raw.x}, U:${c.raw.y})`}},
+        tooltip:{callbacks:{
+          title:(items)=>items.length?String(items[0].raw.label||''):'' ,
+          label:(ctx)=>`(I:${ctx.raw.x}, U:${ctx.raw.y})`
+        }},
         datalabels:{align:'top',formatter:(v)=>v.label,color:css('--muted'),clip:true},
         annotation:{annotations:{
-          vline:{type:'line',xMin:3,xMax:3,borderColor:css('--grid'),borderDash:[6,6]},
-          hline:{type:'line',yMin:3,yMax:3,borderColor:css('--grid'),borderDash:[6,6]},
-          q1:{type:'box',xMin:3,xMax:5,yMin:3,yMax:4,backgroundColor:'rgba(245,158,11,0.07)'},
-          q2:{type:'box',xMin:3,xMax:5,yMin:1,yMax:3,backgroundColor:'rgba(16,185,129,0.08)'},
-          q3:{type:'box',xMin:1,xMax:3,yMin:3,yMax:4,backgroundColor:'rgba(239,68,68,0.06)'},
-          q4:{type:'box',xMin:1,xMax:3,yMin:1,yMax:3,backgroundColor:'rgba(156,163,175,0.06)'}
+          commit:{type:'box',xMin:3,xMax:5,yMin:1,yMax:3,backgroundColor:quadrantFills.commit,drawTime:'beforeDatasetsDraw'},
+          explore:{type:'box',xMin:3,xMax:5,yMin:3,yMax:5,backgroundColor:quadrantFills.explore,drawTime:'beforeDatasetsDraw'},
+          park:{type:'box',xMin:1,xMax:3,yMin:3,yMax:5,backgroundColor:quadrantFills.park,drawTime:'beforeDatasetsDraw'},
+          defer:{type:'box',xMin:1,xMax:3,yMin:1,yMax:3,backgroundColor:quadrantFills.defer,drawTime:'beforeDatasetsDraw'},
+          vline:{type:'line',xMin:3,xMax:3,borderColor:css('--grid'),borderDash:[6,6],borderWidth:1.5},
+          hline:{type:'line',yMin:3,yMax:3,borderColor:css('--grid'),borderDash:[6,6],borderWidth:1.5}
         }}}
       },
-      scales:{x:{min:1,max:5,title:{display:true,text:'اثر (Impact)'}},y:{min:1,max:4,title:{display:true,text:'عدم‌قطعیت (Uncertainty)'}}}
+      scales:{
+        x:{min:1,max:5,title:{display:true,text:'اثر (Impact)'}},
+        y:{min:1,max:5,title:{display:true,text:'عدم‌قطعیت (Uncertainty)'}}
+      }
     }});
 }
 
