@@ -3,3 +3,4 @@ numpy
 networkx
 matplotlib
 jinja2
+pytest>=8,<9
