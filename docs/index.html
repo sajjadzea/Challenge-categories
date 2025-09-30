@@ -1,0 +1,26 @@
+<!doctype html><html lang="fa"><meta charset="utf-8"/>
+<title>Network Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<div style="padding:8px">
+  <h1>نقشه شبکه مسائل</h1>
+  <div id="cy" style="width:100%;height:70vh;border:1px solid #ddd;border-radius:8px"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
+<script>
+async function loadCSV(p){ const r=await fetch(p); return Papa.parse(await r.text(),{header:true}).data; }
+(async()=>{
+  const problems=await loadCSV('/data/problems_enriched.csv').catch(()=>[]);
+  const edges=await loadCSV('/data/edges.csv').catch(()=>[]);
+  const nodes=problems.map(p=>({ data:{ id:p.id, label:p.title, route:p.route||'NA', sector:p.sector||'other' } }));
+  const links=edges.map(e=>({ data:{ id:e.source+'_'+e.target, source:e.source, target:e.target, weight:+e.weight||1 } }));
+  const cy = cytoscape({ container:document.getElementById('cy'), elements:[...nodes,...links],
+    layout:{ name:'cose' }, style:[
+      { selector:'node', style:{ 'label':'data(label)','font-size':10,'background-color':'#888','text-wrap':'wrap','text-max-width':120 } },
+      { selector:'edge', style:{ 'curve-style':'bezier','width':'data(weight)','line-color':'#bbb' } },
+      { selector:'node[route = "EXPLORE"]', style:{ 'background-color':'#f59e0b' } },
+      { selector:'node[route = "COMMIT"]',  style:{ 'background-color':'#10b981' } }
+    ]});
+})();
+</script>
+</html>

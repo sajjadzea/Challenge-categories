@@ -1,0 +1,25 @@
+name: analyze
+on:
+  push:
+    paths: ["data/**","analysis/python/**","web/**"]
+  pull_request:
+    paths: ["data/**","analysis/python/**","web/**"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r analysis/python/requirements.txt
+      - run: python analysis/python/triage_impact_uncertainty.py
+      - run: python analysis/python/micmac.py
+      - run: python analysis/python/ism.py
+      - run: python analysis/python/reports.py
+      - name: Commit docs
+        run: |
+          git config user.name "ci-bot"
+          git config user.email "ci@example.com"
+          git add docs || true
+          git commit -m "ci: update docs" || true
+          git push || true

@@ -1,0 +1,18 @@
+name: New Problem
+labels: [problem]
+body:
+  - type: input
+    id: title
+    attributes: { label: Title }
+  - type: dropdown
+    id: sector
+    attributes: { label: Sector, options: [water, power, gas, oil, other] }
+  - type: dropdown
+    id: stacey_zone
+    attributes: { label: Stacey Zone, options: [1,2,3,4] }
+  - type: input
+    id: impact
+    attributes: { label: Impact (1..5) }
+  - type: input
+    id: uncertainty
+    attributes: { label: Uncertainty (1..4) }

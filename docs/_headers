@@ -1,0 +1,5 @@
+/data/*
+  Cache-Control: public, max-age=60, s-maxage=600
+  Access-Control-Allow-Origin: *
+/api/*
+  Cache-Control: no-store

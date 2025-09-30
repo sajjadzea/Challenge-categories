@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type":"array",
+  "items":{
+    "type":"object",
+    "required":["id","title","sector","stacey_zone","impact","uncertainty"],
+    "properties":{
+      "id":{"type":"string"},
+      "title":{"type":"string"},
+      "sector":{"type":"string","enum":["water","power","gas","oil","other"]},
+      "stacey_zone":{"type":"integer","minimum":1,"maximum":4},
+      "impact":{"type":"integer","minimum":1,"maximum":5},
+      "uncertainty":{"type":"integer","minimum":1,"maximum":4}
+    }
+  }
+}
