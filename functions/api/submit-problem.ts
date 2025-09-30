@@ -1,16 +1,8 @@
-const enc = (input: string) => {
-  const bytes = new TextEncoder().encode(input);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-};
+const enc = (input: string) =>
+  btoa(String.fromCharCode(...new TextEncoder().encode(input)));
 
-const dec = (encoded: string) => {
-  const binary = atob(encoded);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
-};
+const dec = (encoded: string) =>
+  new TextDecoder().decode(Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0)));
 
 export const onRequestPost: PagesFunction = async ({ request, env }) => {
   const GH_TOKEN = env.GH_TOKEN;
@@ -42,18 +34,11 @@ export const onRequestPost: PagesFunction = async ({ request, env }) => {
     });
   const mainRef = await (await gh(`/repos/${owner}/${repo}/git/refs/heads/main`)).json();
   const branch = `add-problem-${id}`;
-  const createRefResp = await gh(`/repos/${owner}/${repo}/git/refs`, {
+  await gh(`/repos/${owner}/${repo}/git/refs`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: mainRef.object.sha }),
-  });
-  if (!createRefResp.ok && createRefResp.status !== 422) {
-    const error = await createRefResp.json().catch(() => ({}));
-    return new Response(JSON.stringify({ error }), {
-      status: createRefResp.status,
-      headers: { "content-type": "application/json" },
-    });
-  }
+  }).catch(() => {});
   const file = await (await gh(`/repos/${owner}/${repo}/contents/data/problems.csv?ref=${branch}`)).json();
   const csv = dec(file.content);
   const line = `\n${id},${title},${sector},${stacey_zone},${impact},${uncertainty},,,open,edge`;
