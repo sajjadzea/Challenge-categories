@@ -1,66 +1,419 @@
-<!doctype html><html lang="fa"><meta charset="utf-8"/>
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8"/>
 <title>Network Dashboard</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<div style="padding:8px">
+<style>
+  body{font-family:sans-serif;margin:0;background:#fafafa;color:#1f2937}
+  nav{display:flex;gap:8px;padding:12px;background:#fff;border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:10}
+  nav button{padding:8px 12px;border:1px solid #d1d5db;background:#f3f4f6;border-radius:6px;cursor:pointer;font-weight:600;color:#374151}
+  nav button.active{background:#2563eb;color:#fff;border-color:#2563eb}
+  section{padding:16px}
+  #cy{width:100%;height:70vh;border:1px solid #d1d5db;border-radius:8px;background:#fff}
+  #msg,.tab-msg{margin-top:12px;color:#6b7280}
+  table{border-collapse:collapse;width:100%;max-width:640px;background:#fff}
+  table th,table td{border:1px solid #e5e7eb;padding:8px;text-align:left}
+  table thead{background:#f9fafb}
+  #ismList > div{margin-bottom:16px;padding:12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
+  #ismList h4{margin:0 0 8px;font-size:1.1rem;color:#111827}
+</style>
+</head>
+<body>
+<nav>
+  <button data-tab="net" class="active">Network</button>
+  <button data-tab="stacey">Stacey 2×2</button>
+  <button data-tab="micmac">MICMAC</button>
+  <button data-tab="ism">ISM</button>
+  <button data-tab="tables">Tables</button>
+</nav>
+<section id="tab-net">
   <h1>نقشه شبکه مسائل</h1>
-  <div id="cy" style="width:100%;height:70vh;border:1px solid #ddd;border-radius:8px"></div>
-  <div id="msg" style="padding:8px;color:#666"></div>
-</div>
+  <div id="cy"></div>
+  <div id="msg"></div>
+</section>
+<section id="tab-stacey" style="display:none">
+  <canvas id="staceyChart"></canvas>
+  <div id="staceyMsg" class="tab-msg"></div>
+</section>
+<section id="tab-micmac" style="display:none">
+  <canvas id="micmacChart"></canvas>
+  <div id="micmacMsg" class="tab-msg"></div>
+</section>
+<section id="tab-ism" style="display:none">
+  <div id="ismList"></div>
+  <div id="ismMsg" class="tab-msg"></div>
+</section>
+<section id="tab-tables" style="display:none">
+  <h3>Top Drivers</h3>
+  <table id="driversTbl"><thead><tr><th>id</th><th>influence</th><th>dependence</th></tr></thead><tbody></tbody></table>
+  <div id="driversMsg" class="tab-msg"></div>
+</section>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
 <script>
-async function loadCSV(p){
-  const r = await fetch(p);
-  if(!r.ok) throw new Error('Failed to load '+p);
-  return Papa.parse(await r.text(),{header:true,skipEmptyLines:true}).data;
-}
-(async()=>{
-  const problems=await loadCSV('data/problems_enriched.csv')
-    .catch(()=> loadCSV('data/problems.csv').then(rows=>{
-      return rows.map(r=>{
-        const U=+r.uncertainty||0, I=+r.impact||0;
-        const route = (I>=3 && U<3) ? 'COMMIT'
-                   : (I>=3 && U>=3) ? 'EXPLORE'
-                   : (I<3  && U>=3) ? 'PARK'
-                   : 'DEFER/AUTO';
-        return { ...r, route };
-      });
-    }).catch(()=>[]));
-  const edgesRaw=await loadCSV('data/edges.csv').catch(()=>[]);
-  const nodeSet = new Set(problems.map(p=>p.id));
-  const edges = edgesRaw.filter(e => nodeSet.has(e.source) && nodeSet.has(e.target));
-  let micmacById=null;
-  try{
-    const micmacRows=await loadCSV('docs/data/micmac.csv');
-    const cleaned=micmacRows.filter(r=>r.id && r.micmac_class);
-    if(cleaned.length){
-      micmacById=Object.fromEntries(cleaned.map(r=>[r.id,r.micmac_class]));
+const ROUTE_COLORS={
+  'COMMIT':'#10b981',
+  'EXPLORE':'#f59e0b',
+  'PARK':'#f87171',
+  'DEFER/AUTO':'#9ca3af',
+  'DEFER':'#9ca3af',
+  'AUTO':'#9ca3af'
+};
+const MICMAC_COLORS={
+  'Driver':'#065f46',
+  'Linkage':'#f59e0b',
+  'Dependent':'#3b82f6',
+  'Autonomous':'#9ca3af'
+};
+const DATA_BASES=[
+  'data/',
+  './data/',
+  '../data/',
+  'docs/data/',
+  './docs/data/',
+  '../docs/data/'
+];
+let staceyChart=null;
+let micmacChart=null;
+const staceyQuadrantPlugin={
+  id:'staceyQuadrants',
+  afterDraw(chart){
+    const xScale=chart.scales.x;
+    const yScale=chart.scales.y;
+    if(!xScale||!yScale) return;
+    const x=xScale.getPixelForValue(3);
+    const y=yScale.getPixelForValue(3);
+    const {ctx,chartArea}=chart;
+    ctx.save();
+    ctx.strokeStyle='#d1d5db';
+    ctx.lineWidth=1;
+    if(x>chartArea.left&&x<chartArea.right){
+      ctx.beginPath();
+      ctx.moveTo(x,chartArea.top);
+      ctx.lineTo(x,chartArea.bottom);
+      ctx.stroke();
     }
-  }catch(e){
-    micmacById=null;
+    if(y>chartArea.top&&y<chartArea.bottom){
+      ctx.beginPath();
+      ctx.moveTo(chartArea.left,y);
+      ctx.lineTo(chartArea.right,y);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
-  const nodes=problems.map(p=>({ data:{ id:p.id, label:p.title, route:p.route||'NA', sector:p.sector||'other', micmac:micmacById?.[p.id]||null } }));
-  const links=edges.map(e=>({ data:{ id:e.source+'_'+e.target, source:e.source, target:e.target, weight:+e.weight||1 } }));
-  const baseStyle=[
-    { selector:'node', style:{ 'label':'data(label)','font-size':10,'background-color':'#888','text-wrap':'wrap','text-max-width':120 } },
-    { selector:'edge', style:{ 'curve-style':'bezier','width':'data(weight)','line-color':'#bbb' } }
+};
+
+function setMessage(id,message){
+  const el=document.getElementById(id);
+  if(!el) return;
+  if(message){
+    el.textContent=message;
+    el.style.display='block';
+  }else{
+    el.textContent='';
+    el.style.display='none';
+  }
+}
+
+function showTab(tab){
+  document.querySelectorAll('nav button').forEach(btn=>{
+    const isActive=btn.dataset.tab===tab;
+    btn.classList.toggle('active',isActive);
+  });
+  document.querySelectorAll('section').forEach(sec=>{
+    sec.style.display=sec.id===`tab-${tab}`?'block':'none';
+  });
+}
+
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.addEventListener('click',()=>showTab(btn.dataset.tab));
+});
+
+async function loadCSV(paths){
+  const list=Array.isArray(paths)?paths:[paths];
+  const tried=new Set();
+  for(const p of list){
+    for(const base of DATA_BASES){
+      const path=p.includes('/')?p:`${base}${p}`;
+      if(tried.has(path)) continue;
+      tried.add(path);
+      try{
+        const res=await fetch(path);
+        if(!res.ok) continue;
+        const text=await res.text();
+        const parsed=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
+        return {rows:parsed,path};
+      }catch(e){
+        continue;
+      }
+    }
+  }
+  throw new Error(`Unable to load ${list.join(', ')}`);
+}
+
+function ensureRoute(entry){
+  const I=+entry.impact||0;
+  const U=+entry.uncertainty||0;
+  if(entry.route) return entry.route;
+  if(I>=3&&U<3) return 'COMMIT';
+  if(I>=3&&U>=3) return 'EXPLORE';
+  if(I<3&&U>=3) return 'PARK';
+  return 'DEFER/AUTO';
+}
+
+function renderNetwork(problems,edges){
+  const cyContainer=document.getElementById('cy');
+  if(!problems.length){
+    setMessage('msg','هیچ مسئله‌ای پیدا نشد. فایل‌های data/* یا docs/data/* را بررسی کنید.');
+    cyContainer.innerHTML='';
+    return;
+  }
+  const nodeSet=new Set(problems.map(p=>p.id));
+  const validEdges=edges.filter(e=>nodeSet.has(e.source)&&nodeSet.has(e.target));
+  const nodes=problems.map(p=>({data:{id:p.id,label:p.title,route:ensureRoute(p),sector:p.sector||'other',micmac:p.micmac||null}}));
+  const links=validEdges.map(e=>({data:{id:`${e.source}_${e.target}`,source:e.source,target:e.target,weight:+e.weight||1}}));
+  const hasMicmac=problems.some(p=>p.micmac);
+  const style=[
+    {selector:'node',style:{'label':'data(label)','font-size':10,'background-color':'#888','text-wrap':'wrap','text-max-width':120}},
+    {selector:'edge',style:{'curve-style':'bezier','width':'data(weight)','line-color':'#bbb'}}
   ];
-  const style = micmacById ? baseStyle.concat([
-    { selector:'node[micmac = "Driver"]', style:{ 'background-color':'#065f46' } },
-    { selector:'node[micmac = "Linkage"]', style:{ 'background-color':'#d97706' } },
-    { selector:'node[micmac = "Dependent"]', style:{ 'background-color':'#2563eb' } },
-    { selector:'node[micmac = "Autonomous"]', style:{ 'background-color':'#9ca3af' } }
-  ]) : baseStyle.concat([
-    { selector:'node[route = "EXPLORE"]', style:{ 'background-color':'#f59e0b' } },
-    { selector:'node[route = "COMMIT"]',  style:{ 'background-color':'#10b981' } }
-  ]);
-  const cy = cytoscape({ container:document.getElementById('cy'), elements:[...nodes,...links],
-    layout:{ name:'cose' }, style });
-  if(nodes.length===0){
-    document.getElementById('msg').textContent = 'هیچ مسئله‌ای پیدا نشد. فایل‌های data/* را پر کنید یا منتظر خروجی CI بمانید.';
-  } else if(edges.length===0 && edgesRaw.length>0){
-    document.getElementById('msg').textContent = 'یال‌های نامعتبر حذف شدند (گره‌هایی در edges بودند که در problems تعریف نشده‌اند).';
+  if(hasMicmac){
+    style.push(
+      {selector:'node[micmac = "Driver"]',style:{'background-color':'#065f46'}},
+      {selector:'node[micmac = "Linkage"]',style:{'background-color':'#f59e0b'}},
+      {selector:'node[micmac = "Dependent"]',style:{'background-color':'#3b82f6'}},
+      {selector:'node[micmac = "Autonomous"]',style:{'background-color':'#9ca3af'}}
+    );
+  }else{
+    style.push(
+      {selector:'node[route = "EXPLORE"]',style:{'background-color':'#f59e0b'}},
+      {selector:'node[route = "COMMIT"]',style:{'background-color':'#10b981'}}
+    );
+  }
+  cytoscape({container:cyContainer,elements:[...nodes,...links],layout:{name:'cose'},style});
+  if(validEdges.length===0&&edges.length>0){
+    setMessage('msg','یال‌های نامعتبر حذف شدند (گره‌هایی در edges بودند که در problems تعریف نشده‌اند).');
+  }
+}
+
+function renderStaceyChart(rows){
+  const msgId='staceyMsg';
+  if(!rows.length){
+    setMessage(msgId,'داده‌ای برای نمودار Stacey در دسترس نیست.');
+    if(staceyChart){staceyChart.destroy();staceyChart=null;}
+    return;
+  }
+  const grouped={};
+  rows.forEach(r=>{
+    const normalized=(r.route||'').toUpperCase();
+    const key=ROUTE_COLORS[normalized]?normalized:'OTHER';
+    if(!grouped[key]){
+      grouped[key]={label:key==='OTHER'?'OTHER':normalized,data:[],color:ROUTE_COLORS[normalized]||'#6b7280'};
+    }
+    grouped[key].data.push({x:+r.impact||0,y:+r.uncertainty||0,label:r.title||r.id||'',route:normalized});
+  });
+  const datasets=[];
+  Object.keys(ROUTE_COLORS).forEach(route=>{
+    if(grouped[route]){
+      datasets.push({label:grouped[route].label,data:grouped[route].data,backgroundColor:grouped[route].color,pointRadius:6});
+      delete grouped[route];
+    }
+  });
+  if(grouped.OTHER){
+    datasets.push({label:'OTHER',data:grouped.OTHER.data,backgroundColor:grouped.OTHER.color,pointRadius:6});
+  }
+  if(!datasets.length){
+    setMessage(msgId,'هیچ نقطه‌ای برای نمایش در نمودار Stacey موجود نیست.');
+    if(staceyChart){staceyChart.destroy();staceyChart=null;}
+    return;
+  }
+  setMessage(msgId,'');
+  if(staceyChart){staceyChart.destroy();}
+  staceyChart=new Chart(document.getElementById('staceyChart').getContext('2d'),{
+    type:'scatter',
+    data:{datasets},
+    options:{
+      responsive:true,
+      parsing:false,
+      plugins:{
+        tooltip:{
+          callbacks:{
+            label(ctx){
+              const raw=ctx.raw||{};
+              return `${raw.label||''} (I:${raw.x}, U:${raw.y})`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{min:1,max:5,ticks:{stepSize:1},title:{display:true,text:'Impact'}},
+        y:{min:1,max:4,ticks:{stepSize:1},title:{display:true,text:'Uncertainty'}},
+      }
+    },
+    plugins:[staceyQuadrantPlugin]
+  });
+}
+
+function renderMicmacChart(rows,message){
+  const msgId='micmacMsg';
+  if(!rows.length){
+    setMessage(msgId,message||'داده‌ای برای نمودار MICMAC یافت نشد.');
+    if(micmacChart){micmacChart.destroy();micmacChart=null;}
+    return;
+  }
+  const grouped={};
+  rows.forEach(r=>{
+    const cls=r.micmac_class||r.class||'';
+    if(!cls) return;
+    if(!grouped[cls]) grouped[cls]=[];
+    grouped[cls].push({x:+r.influence||0,y:+r.dependence||0,label:r.id||'',class:cls});
+  });
+  const datasets=Object.entries(grouped).map(([cls,data])=>({label:cls,data,backgroundColor:MICMAC_COLORS[cls]||'#6b7280',pointRadius:6}));
+  if(!datasets.length){
+    setMessage(msgId,'نمودار MICMAC دادهٔ قابل نمایش ندارد.');
+    if(micmacChart){micmacChart.destroy();micmacChart=null;}
+    return;
+  }
+  setMessage(msgId,'');
+  if(micmacChart){micmacChart.destroy();}
+  micmacChart=new Chart(document.getElementById('micmacChart').getContext('2d'),{
+    type:'scatter',
+    data:{datasets},
+    options:{
+      responsive:true,
+      parsing:false,
+      plugins:{
+        tooltip:{
+          callbacks:{
+            label(ctx){
+              const raw=ctx.raw||{};
+              return `${raw.label||''} (Inf:${raw.x}, Dep:${raw.y})`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{title:{display:true,text:'Influence'},beginAtZero:true},
+        y:{title:{display:true,text:'Dependence'},beginAtZero:true}
+      }
+    }
+  });
+}
+
+function renderISM(levels,message){
+  const container=document.getElementById('ismList');
+  container.innerHTML='';
+  if(!levels.length){
+    setMessage('ismMsg',message||'داده‌ای برای سطح‌بندی ISM موجود نیست.');
+    return;
+  }
+  setMessage('ismMsg','');
+  const groups=new Map();
+  levels.forEach(item=>{
+    const lvl=item.level||item.Level||'';
+    if(!lvl) return;
+    if(!groups.has(lvl)) groups.set(lvl,[]);
+    groups.get(lvl).push(item.id||item.element||item.title||'نامشخص');
+  });
+  const sorted=[...groups.entries()].sort((a,b)=>{
+    const an=Number(a[0]);
+    const bn=Number(b[0]);
+    if(!Number.isNaN(an)&&!Number.isNaN(bn)) return an-bn;
+    return a[0].localeCompare(b[0]);
+  });
+  sorted.forEach(([lvl,items])=>{
+    const box=document.createElement('div');
+    const heading=document.createElement('h4');
+    heading.textContent=`سطح ${lvl}`;
+    box.appendChild(heading);
+    const list=document.createElement('ul');
+    items.forEach(text=>{
+      const li=document.createElement('li');
+      li.textContent=text;
+      list.appendChild(li);
+    });
+    box.appendChild(list);
+    container.appendChild(box);
+  });
+}
+
+function renderDriversTable(rows,message){
+  const tbody=document.querySelector('#driversTbl tbody');
+  tbody.innerHTML='';
+  if(!rows.length){
+    setMessage('driversMsg',message||'داده‌ای برای جدول Drivers موجود نیست.');
+    return;
+  }
+  setMessage('driversMsg','');
+  rows.forEach(row=>{
+    const tr=document.createElement('tr');
+    ['id','influence','dependence'].forEach(key=>{
+      const td=document.createElement('td');
+      td.textContent=row[key]!==undefined?row[key]:'';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+(async function init(){
+  let problems=[];
+  let micmacById={};
+  let micmacRowsForChart=null;
+  let edges=[];
+  try{
+    const enriched=await loadCSV(['problems_enriched.csv']);
+    problems=enriched.rows;
+  }catch(e){
+    try{
+      const base=await loadCSV(['problems.csv']);
+      problems=base.rows;
+    }catch(err){
+      problems=[];
+    }
+  }
+  try{
+    const micmac=await loadCSV(['micmac.csv']);
+    micmacRowsForChart=micmac.rows;
+    micmacById=Object.fromEntries(micmac.rows.filter(r=>r.id&&r.micmac_class).map(r=>[r.id,r.micmac_class]));
+  }catch(e){
+    micmacById={};
+    micmacRowsForChart=null;
+  }
+  try{
+    const edgeData=await loadCSV(['edges.csv']);
+    edges=edgeData.rows;
+  }catch(e){
+    edges=[];
+    setMessage('msg','فایل edges.csv یافت نشد.');
+  }
+  const problemsWithMeta=problems.map(p=>({
+    ...p,
+    route:ensureRoute(p),
+    micmac:micmacById[p.id]||p.micmac||''
+  }));
+  renderNetwork(problemsWithMeta,edges);
+  renderStaceyChart(problemsWithMeta);
+  if(micmacRowsForChart){
+    renderMicmacChart(micmacRowsForChart);
+  }else{
+    renderMicmacChart([], 'فایل micmac.csv یافت نشد یا خالی است.');
+  }
+  try{
+    const ism=await loadCSV(['ism_levels.csv']);
+    renderISM(ism.rows);
+  }catch(e){
+    renderISM([], 'فایل ism_levels.csv یافت نشد یا خالی است.');
+  }
+  try{
+    const drivers=await loadCSV(['top_drivers.csv']);
+    renderDriversTable(drivers.rows);
+  }catch(e){
+    renderDriversTable([], 'فایل top_drivers.csv یافت نشد یا خالی است.');
   }
 })();
 </script>
+</body>
 </html>
