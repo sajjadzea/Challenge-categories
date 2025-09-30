@@ -134,7 +134,7 @@ async function renderMICMAC(){
           hline:{type:'line',yMin:my,yMax:my,borderColor:css('--grid'),borderDash:[6,6]}
         }}}
       },
-      scales:{x:{title:{display:true,text:'نفوذ (Influence)'}},y:{title:{display:true,text:'وابستگی (Dependence)'}}}
+      scales:{x:{title:{display:true,text:'نفوذ'}},y:{title:{display:true,text:'وابستگی'}}}
     }});
 }
 
