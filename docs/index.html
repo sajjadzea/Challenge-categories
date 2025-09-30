@@ -27,19 +27,29 @@ async function loadCSV(p){
       });
     }).catch(()=>[]));
   const edgesRaw=await loadCSV('data/edges.csv').catch(()=>[]);
-  const nodeSet = new Set(problems.map(p=>p.id));
-  const edges = edgesRaw.filter(e => nodeSet.has(e.source) && nodeSet.has(e.target));
+  const clean = rows => rows.filter(r => r && String(r.id||'').trim()!=='');
+  const pClean = clean(problems).map(p => ({ ...p, id:String(p.id).trim() }));
+  const nodeSet = new Set(pClean.map(p=>p.id));
+  const edges = edgesRaw.map(e=>{
+    const source=String(e.source||'').trim();
+    const target=String(e.target||'').trim();
+    return { ...e, source, target };
+  }).filter(e => nodeSet.has(e.source) && nodeSet.has(e.target));
   let micmacById=null;
   try{
     const micmacRows=await loadCSV('docs/data/micmac.csv');
-    const cleaned=micmacRows.filter(r=>r.id && r.micmac_class);
+    const cleaned=micmacRows.map(r=>{
+      const id=String(r.id||'').trim();
+      const micmac_class=String(r.micmac_class||'').trim();
+      return (id && micmac_class) ? { ...r, id, micmac_class } : null;
+    }).filter(Boolean);
     if(cleaned.length){
       micmacById=Object.fromEntries(cleaned.map(r=>[r.id,r.micmac_class]));
     }
   }catch(e){
     micmacById=null;
   }
-  const nodes=problems.map(p=>({ data:{ id:p.id, label:p.title, route:p.route||'NA', sector:p.sector||'other', micmac:micmacById?.[p.id]||null } }));
+  const nodes=pClean.map(p=>({ data:{ id:p.id, label:p.title, route:p.route||'NA', sector:p.sector||'other', micmac:micmacById?.[p.id]||null } }));
   const links=edges.map(e=>({ data:{ id:e.source+'_'+e.target, source:e.source, target:e.target, weight:+e.weight||1 } }));
   const baseStyle=[
     { selector:'node', style:{ 'label':'data(label)','font-size':10,'background-color':'#888','text-wrap':'wrap','text-max-width':120 } },
