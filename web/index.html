@@ -26,7 +26,9 @@ async function loadCSV(p){
         return { ...r, route };
       });
     }).catch(()=>[]));
-  const edges=await loadCSV('data/edges.csv').catch(()=>[]);
+  const edgesRaw=await loadCSV('data/edges.csv').catch(()=>[]);
+  const nodeSet = new Set(problems.map(p=>p.id));
+  const edges = edgesRaw.filter(e => nodeSet.has(e.source) && nodeSet.has(e.target));
   let micmacById=null;
   try{
     const micmacRows=await loadCSV('docs/data/micmac.csv');
@@ -55,8 +57,9 @@ async function loadCSV(p){
   const cy = cytoscape({ container:document.getElementById('cy'), elements:[...nodes,...links],
     layout:{ name:'cose' }, style });
   if(nodes.length===0){
-    document.getElementById('msg').textContent =
-      'داده‌ای پیدا نشد. منتظر خروجی CI بمانید یا فایل‌های data/* را پر کنید.';
+    document.getElementById('msg').textContent = 'هیچ مسئله‌ای پیدا نشد. فایل‌های data/* را پر کنید یا منتظر خروجی CI بمانید.';
+  } else if(edges.length===0 && edgesRaw.length>0){
+    document.getElementById('msg').textContent = 'یال‌های نامعتبر حذف شدند (گره‌هایی در edges بودند که در problems تعریف نشده‌اند).';
   }
 })();
 </script>
