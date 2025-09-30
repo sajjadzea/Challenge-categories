@@ -1,2 +1,3 @@
 id,title,sector,stacey_zone,impact,uncertainty,controllability,owner,horizon,status,notes
 P001,نشتی شبکه آب,water,3,4,3,2,Abfa,Q2,open,نمونه اولیه
+P002,افت فشار پمپاژ,water,2,3,2,3,Ops,Q2,open,نمونه دوم
