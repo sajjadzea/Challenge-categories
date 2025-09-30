@@ -13,7 +13,15 @@
     <button data-tab="tables">Tables</button>
   </nav>
   <section id="tab-net" class="card"><div id="cy"></div><div id="msg" class="kv"></div></section>
-  <section id="tab-stacey" class="card" style="display:none"><canvas id="staceyChart" height="340"></canvas></section>
+  <section id="tab-stacey" class="card" style="display:none">
+    <canvas id="staceyChart" height="340"></canvas>
+    <div class="kv stacey-legend">
+      <span><i style="background:var(--green)"></i>COMMIT</span>
+      <span><i style="background:var(--amber)"></i>EXPLORE</span>
+      <span><i style="background:var(--red)"></i>PARK</span>
+      <span><i style="background:var(--gray)"></i>DEFER/AUTO</span>
+    </div>
+  </section>
   <section id="tab-micmac" class="card" style="display:none"><canvas id="micmacChart" height="340"></canvas></section>
   <section id="tab-ism" class="card" style="display:none"><div id="ismList"></div></section>
   <section id="tab-tables" class="card" style="display:none">
