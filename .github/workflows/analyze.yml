@@ -6,6 +6,7 @@ on:
     paths: ["data/**","analysis/python/**","web/**"]
 jobs:
   build:
+    # Allow docs updates to be pushed back to the repository
     permissions:
       contents: write
     runs-on: ubuntu-latest
