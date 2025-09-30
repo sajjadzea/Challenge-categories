@@ -1,0 +1,30 @@
+<!doctype html><html lang="fa"><meta charset="utf-8"/>
+<title>Network Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css" rel="stylesheet">
+<link href="assets/styles.css" rel="stylesheet">
+<div>
+  <h1>نقشه شبکه مسائل</h1>
+  <nav class="card">
+    <button data-tab="net" class="active">Network</button>
+    <button data-tab="stacey">Stacey 2×2</button>
+    <button data-tab="micmac">MICMAC</button>
+    <button data-tab="ism">ISM</button>
+    <button data-tab="tables">Tables</button>
+  </nav>
+  <section id="tab-net" class="card"><div id="cy"></div><div id="msg" class="kv"></div></section>
+  <section id="tab-stacey" class="card" style="display:none"><canvas id="staceyChart" height="340"></canvas></section>
+  <section id="tab-micmac" class="card" style="display:none"><canvas id="micmacChart" height="340"></canvas></section>
+  <section id="tab-ism" class="card" style="display:none"><div id="ismList"></div></section>
+  <section id="tab-tables" class="card" style="display:none">
+    <h3>Top Drivers</h3>
+    <table id="driversTbl"><thead><tr><th>id</th><th>influence</th><th>dependence</th></tr></thead><tbody></tbody></table>
+  </section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script type="module" src="js/app.js"></script>
+</html>
