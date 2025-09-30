@@ -3,3 +3,5 @@
   Access-Control-Allow-Origin: *
 /api/*
   Cache-Control: no-store
+/js/app.js
+  Cache-Control: max-age=0, must-revalidate

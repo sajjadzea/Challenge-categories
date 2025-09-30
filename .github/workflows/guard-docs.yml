@@ -1,0 +1,18 @@
+name: guard-docs
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Block manual edits to docs/**
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}... | grep '^docs/' || true)
+          if [ -n "$CHANGED" ]; then
+            echo "::error::Do not edit docs/** in PR. CI generates docs (from web/**)."
+            exit 1
+          fi
