@@ -74,20 +74,22 @@ async function renderStacey(){
   const ctx = document.getElementById('staceyChart').getContext('2d');
   // global plugins used via CDN
   new Chart(ctx,{type:'scatter',data:{datasets:[{data:pts, pointBackgroundColor:pts.map(d=>colorByRoute(d.route))}]},
-    options:{responsive:true,plugins:{
-      legend:{display:false},
-      tooltip:{callbacks:{label:(c)=>`${c.raw.label} (I:${c.raw.x}, U:${c.raw.y})`}},
-      datalabels:{align:'top',formatter:(v)=>v.label,color:css('--muted'),clip:true}},
-      scales:{x:{min:1,max:5,title:{display:true,text:'اثر (Impact)'}},y:{min:1,max:4,title:{display:true,text:'عدم‌قطعیت (Uncertainty)'}}},
-    plugins:[ChartDataLabels, ChartAnnotation],
-    annotation:{annotations:{
-      vline:{type:'line',xMin:3,xMax:3,borderColor:css('--grid'),borderDash:[6,6]},
-      hline:{type:'line',yMin:3,yMax:3,borderColor:css('--grid'),borderDash:[6,6]},
-      q1:{type:'box',xMin:3,xMax:5,yMin:3,yMax:4,backgroundColor:'rgba(245,158,11,0.07)'},
-      q2:{type:'box',xMin:3,xMax:5,yMin:1,yMax:3,backgroundColor:'rgba(16,185,129,0.08)'},
-      q3:{type:'box',xMin:1,xMax:3,yMin:3,yMax:4,backgroundColor:'rgba(239,68,68,0.06)'},
-      q4:{type:'box',xMin:1,xMax:3,yMin:1,yMax:3,backgroundColor:'rgba(156,163,175,0.06)'}
-    }}});
+    options:{responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:(c)=>`${c.raw.label} (I:${c.raw.x}, U:${c.raw.y})`}},
+        datalabels:{align:'top',formatter:(v)=>v.label,color:css('--muted'),clip:true},
+        annotation:{annotations:{
+          vline:{type:'line',xMin:3,xMax:3,borderColor:css('--grid'),borderDash:[6,6]},
+          hline:{type:'line',yMin:3,yMax:3,borderColor:css('--grid'),borderDash:[6,6]},
+          q1:{type:'box',xMin:3,xMax:5,yMin:3,yMax:4,backgroundColor:'rgba(245,158,11,0.07)'},
+          q2:{type:'box',xMin:3,xMax:5,yMin:1,yMax:3,backgroundColor:'rgba(16,185,129,0.08)'},
+          q3:{type:'box',xMin:1,xMax:3,yMin:3,yMax:4,backgroundColor:'rgba(239,68,68,0.06)'},
+          q4:{type:'box',xMin:1,xMax:3,yMin:1,yMax:3,backgroundColor:'rgba(156,163,175,0.06)'}
+        }}}
+      },
+      scales:{x:{min:1,max:5,title:{display:true,text:'اثر (Impact)'}},y:{min:1,max:4,title:{display:true,text:'عدم‌قطعیت (Uncertainty)'}}}
+    }});
 }
 
 /* ===== MICMAC (Chart.js) ===== */
@@ -99,14 +101,18 @@ async function renderMICMAC(){
   const pts = rows.map(r=>({x:+r.influence||0, y:+r.dependence||0, label:r.id, color:colors[r.micmac_class]||css('--gray')}));
   const ctx = document.getElementById('micmacChart').getContext('2d');
   new Chart(ctx,{type:'scatter',data:{datasets:[{data:pts, pointBackgroundColor:pts.map(d=>d.color)}]},
-    options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>`${c.raw.label} (I:${c.raw.x.toFixed(1)}, D:${c.raw.y.toFixed(1)})`}},
-      datalabels:{align:'top',formatter:(v)=>v.label,color:css('--muted'),clip:true}},
-      scales:{x:{title:{display:true,text:'نفوذ (Influence)'}},y:{title:{display:true,text:'وابستگی (Dependence)'}}},
-    plugins:[ChartDataLabels, ChartAnnotation],
-    annotation:{annotations:{
-      vline:{type:'line',xMin:mx,xMax:mx,borderColor:css('--grid'),borderDash:[6,6]},
-      hline:{type:'line',yMin:my,yMax:my,borderColor:css('--grid'),borderDash:[6,6]}
-    }}});
+    options:{
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:(c)=>`${c.raw.label} (I:${c.raw.x.toFixed(1)}, D:${c.raw.y.toFixed(1)})`}},
+        datalabels:{align:'top',formatter:(v)=>v.label,color:css('--muted'),clip:true},
+        annotation:{annotations:{
+          vline:{type:'line',xMin:mx,xMax:mx,borderColor:css('--grid'),borderDash:[6,6]},
+          hline:{type:'line',yMin:my,yMax:my,borderColor:css('--grid'),borderDash:[6,6]}
+        }}}
+      },
+      scales:{x:{title:{display:true,text:'نفوذ (Influence)'}},y:{title:{display:true,text:'وابستگی (Dependence)'}}}
+    }});
 }
 
 /* ===== ISM Levels ===== */
@@ -114,8 +120,7 @@ async function renderISM(){
   const rows = await loadCSV('data/ism_levels.csv').catch(()=>[]);
   const byLevel = {};
   rows.forEach(r=>{ const L=+r.level||1; (byLevel[L]=byLevel[L]||[]).push(String(r.id||'').trim()); });
-  const levelKeys = Object.keys(byLevel).map(Number);
-  const maxL = Math.max(...levelKeys, 1);
+  const maxL = Math.max(...Object.keys(byLevel).map(Number), 1);
   const wrap = document.getElementById('ismList'); wrap.innerHTML='';
   for(let L=maxL; L>=1; L--){
     const box = document.createElement('div'); box.className='card';
