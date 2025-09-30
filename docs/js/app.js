@@ -114,7 +114,8 @@ async function renderISM(){
   const rows = await loadCSV('data/ism_levels.csv').catch(()=>[]);
   const byLevel = {};
   rows.forEach(r=>{ const L=+r.level||1; (byLevel[L]=byLevel[L]||[]).push(String(r.id||'').trim()); });
-  const maxL = Math.max(...Object.keys(byLevel).map(Number),1);
+  const levelKeys = Object.keys(byLevel).map(Number);
+  const maxL = Math.max(...levelKeys, 1);
   const wrap = document.getElementById('ismList'); wrap.innerHTML='';
   for(let L=maxL; L>=1; L--){
     const box = document.createElement('div'); box.className='card';
