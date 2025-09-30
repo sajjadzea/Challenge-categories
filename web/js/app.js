@@ -1,4 +1,4 @@
-/* Helpers */
+/* ===== Helpers ===== */
 async function loadCSV(path){
   const res = await fetch(path);
   if(!res.ok) throw new Error('Failed '+path);
@@ -9,8 +9,8 @@ function median(arr){ if(!arr.length) return 0; const a=[...arr].sort((x,y)=>x-y
 function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 function colorByRoute(r){ return ({'COMMIT':css('--green'),'EXPLORE':css('--amber'),'PARK':css('--red'),'DEFER/AUTO':css('--gray')})[r]||css('--gray'); }
 
-/* Tabs */
-export function bindTabs(){
+/* ===== Tabs ===== */
+function bindTabs(){
   document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{
     document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
@@ -19,8 +19,8 @@ export function bindTabs(){
   }));
 }
 
-/* Network (Cytoscape) */
-export async function renderNetwork(){
+/* ===== Network (Cytoscape) ===== */
+async function renderNetwork(){
   const probs = await loadCSV('data/problems_enriched.csv').catch(()=>loadCSV('data/problems.csv').then(rows=>{
     return rows.map(r=>{
       const U=+r.uncertainty||0, I=+r.impact||0;
@@ -35,7 +35,7 @@ export async function renderNetwork(){
   const edges = edgesRaw.map(e=>({source:String(e.source||'').trim(), target:String(e.target||'').trim(), weight:+e.weight||1}))
                         .filter(e=> nodeSet.has(e.source) && nodeSet.has(e.target));
 
-  // MICMAC map (اختیاری)
+  // MICMAC (optional coloring)
   let micmacById=null;
   try{
     const mm = await loadCSV('data/micmac.csv');
@@ -67,12 +67,12 @@ export async function renderNetwork(){
   else if(edges.length===0 && edgesRaw.length>0) msg.textContent='یال‌های نامعتبر حذف شدند (گره‌هایی در edges بودند که در problems تعریف نشده‌اند).';
 }
 
-/* Stacey 2×2 (Chart.js) */
-export async function renderStacey(){
+/* ===== Stacey 2×2 (Chart.js) ===== */
+async function renderStacey(){
   const rows = await loadCSV('data/problems_enriched.csv').catch(()=>[]);
   const pts = rows.map(r=>({x:+r.impact||0, y:+r.uncertainty||0, label:r.title, route:r.route||'DEFER/AUTO'}));
   const ctx = document.getElementById('staceyChart').getContext('2d');
-  // @ts-ignore - plugins global
+  // global plugins used via CDN
   new Chart(ctx,{type:'scatter',data:{datasets:[{data:pts, pointBackgroundColor:pts.map(d=>colorByRoute(d.route))}]},
     options:{responsive:true,plugins:{
       legend:{display:false},
@@ -90,15 +90,14 @@ export async function renderStacey(){
     }}});
 }
 
-/* MICMAC (Chart.js) */
-export async function renderMICMAC(){
+/* ===== MICMAC (Chart.js) ===== */
+async function renderMICMAC(){
   const rows = await loadCSV('data/micmac.csv').catch(()=>[]);
   const xs = rows.map(r=>+r.influence||0), ys = rows.map(r=>+r.dependence||0);
   const mx = median(xs), my = median(ys);
   const colors = {'Driver':'#065f46','Linkage':css('--amber'),'Dependent':css('--blue'),'Autonomous':css('--gray')};
   const pts = rows.map(r=>({x:+r.influence||0, y:+r.dependence||0, label:r.id, color:colors[r.micmac_class]||css('--gray')}));
   const ctx = document.getElementById('micmacChart').getContext('2d');
-  // @ts-ignore
   new Chart(ctx,{type:'scatter',data:{datasets:[{data:pts, pointBackgroundColor:pts.map(d=>d.color)}]},
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>`${c.raw.label} (I:${c.raw.x.toFixed(1)}, D:${c.raw.y.toFixed(1)})`}},
       datalabels:{align:'top',formatter:(v)=>v.label,color:css('--muted'),clip:true}},
@@ -110,8 +109,8 @@ export async function renderMICMAC(){
     }}});
 }
 
-/* ISM Levels */
-export async function renderISM(){
+/* ===== ISM Levels ===== */
+async function renderISM(){
   const rows = await loadCSV('data/ism_levels.csv').catch(()=>[]);
   const byLevel = {};
   rows.forEach(r=>{ const L=+r.level||1; (byLevel[L]=byLevel[L]||[]).push(String(r.id||'').trim()); });
@@ -121,22 +120,19 @@ export async function renderISM(){
     const box = document.createElement('div'); box.className='card';
     box.innerHTML = `<strong>Level ${L}</strong><div class="legend"></div>`;
     const leg = box.querySelector('.legend');
-    (byLevel[L]||[]).forEach(id=>{ const s=document.createElement('span'); s.textContent=id; s.style.padding='6px 10px'; s.style.border='1px solid #2a3344'; s.style.borderRadius='10px'; s.style.background='#0f172a'; leg.appendChild(s); });
+    (byLevel[L]||[]).forEach(id=>{ const s=document.createElement('span'); s.textContent=id; s.style.padding='6px 10px';
+      s.style.border='1px solid #2a3344'; s.style.borderRadius='10px'; s.style.background='#0f172a'; leg.appendChild(s); });
     wrap.appendChild(box);
   }
 }
 
-/* Top Drivers Table */
-export async function renderDrivers(){
+/* ===== Top Drivers Table ===== */
+async function renderDrivers(){
   const rows = await loadCSV('data/top_drivers.csv').catch(()=>[]);
   const tb = document.querySelector('#driversTbl tbody'); tb.innerHTML='';
   rows.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.id}</td><td>${(+r.influence||0).toFixed(2)}</td><td>${(+r.dependence||0).toFixed(2)}</td>`; tb.appendChild(tr); });
 }
 
-/* Boot */
-export async function boot(){
-  bindTabs();
-  await renderNetwork();
-  renderStacey(); renderMICMAC(); renderISM(); renderDrivers();
-}
+/* ===== Boot ===== */
+async function boot(){ bindTabs(); await renderNetwork(); renderStacey(); renderMICMAC(); renderISM(); renderDrivers(); }
 document.addEventListener('DOMContentLoaded', boot);
