@@ -12,6 +12,8 @@ nav button{background:#1f2937;color:var(--text);border:1px solid #2f3a4d;border-
 nav button.active{outline:2px solid var(--amber)}
 .card{background:var(--card);border:1px solid #1f2430;border-radius:var(--radius);margin:12px 20px;padding:12px}
 .kv{display:flex;gap:8px;align-items:center;margin:8px 20px;color:var(--muted);font-size:12px}
+.kv span{display:flex;align-items:center;gap:6px}
+.kv span i{display:inline-block;width:12px;height:12px;border-radius:50%;}
 .legend{display:flex;gap:12px;flex-wrap:wrap}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-inline-end:6px}
 small.muted{color:var(--muted)}
